@@ -1,0 +1,20 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+
+Description:
+  BankingAuthenticationService
+Resources:
+  RegisterRequests:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: main
+      CodeUri: ./bin/RegisterRequest.zip
+      Runtime: go1.x
+      Timeout: 10
+      Events:
+        Hello:
+          Type: Api
+          Properties:
+            Path: /RegisterRequest
+            Method: get

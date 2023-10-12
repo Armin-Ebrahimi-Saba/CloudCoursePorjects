@@ -1,0 +1,5 @@
+build:
+  env GOOS=linux go build -ldflags="-s -w" -o main endpoints/registerRequest/main.go
+  mkdir -p bin/
+  zip bin/registerRequest.zip main
+  rm main
