@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"hash/fnv"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	dynamotypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go/aws"
@@ -84,6 +86,7 @@ const (
 	CharSet    = "UTF-8"
 	Subject    = "Banking Authentication"
 	Sender     = "armines.bin2000@gmail.com"
+	S3Url      = "https://banking-authentication-images.s3.eu-west-2.amazonaws.com/"
 )
 
 var (
@@ -109,29 +112,67 @@ func (e *errorString) Error() string {
 
 func Handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 	for _, message := range sqsEvent.Records {
-		log.Printf("The message %s for event source %s = %s \n", message.MessageId, message.EventSource, message.Body)
-		user, err := GetUserInfo(message.Body)
+		username := message.Body
+		log.Printf("The message %s for event source %s = %s \n", message.MessageId, message.EventSource, username)
+		score, err := ProcessImages(S3Url+username+"1.jpg",
+			S3Url+username+"2.jpg")
 		if err != nil {
-			log.Printf("Error, getUserInfo, ID: %v\n", message.MessageId)
-			continue
+			log.Printf("Error, ProcessImages, ID: %v\nHere's why: %v\n", message.MessageId, err)
 		}
-		score, err := ProcessImages(user.Image1, user.Image2)
+		user, err := UpdateDB(username, score)
 		if err != nil {
-			log.Printf("Error, processImages, ID: %v\n", message.MessageId)
-			continue
+			log.Printf("Error, UpdateDB, ID: %v\nHere's why: %v\n", message.MessageId, err)
 		}
-		err = sendEmail(score, user.Email)
+		err = SendMsg(score, user.Email, username)
 		if err != nil {
-			log.Printf("Error, sendEmail, ID: %v\n", message.MessageId)
+			log.Printf("Error, SendMsg, ID: %v\nHere's why: %v\n", message.MessageId, err)
 		}
 	}
 	return nil
 }
 
-func sendEmail(score int, recipient string) error {
-	msg := "Authenticaion was failed."
+func UpdateDB(username string, score int) (*User, error) {
+	key, err := attributevalue.Marshal(username)
+	if err != nil {
+		log.Printf("Couldn't unmarshall username. Here's why: %v\n", err)
+	}
+	var response *dynamodb.UpdateItemOutput
+	var user User
+	msg := "درخواست احراز هویت شما رد شد. لطفا کمی بعد مجددا تلاش کنید."
 	if score >= 80 {
-		msg = "Authenticaion was successful."
+		msg = "احراز هویت با موفقیت انجام شد. نام کاربری شما " + username + "است."
+	}
+	update := expression.Set(expression.Name("state"), expression.Value(msg))
+	expr, err := expression.NewBuilder().WithUpdate(update).Build()
+	if err != nil {
+		log.Printf("Couldn't build expression for update. Here's why: %v\n", err)
+	} else {
+		response, err = dbClient.UpdateItem(context.TODO(), &dynamodb.UpdateItemInput{
+			TableName: aws.String(TableName),
+			Key: map[string]dynamotypes.AttributeValue{
+				"username": key,
+			},
+			ExpressionAttributeNames:  expr.Names(),
+			ExpressionAttributeValues: expr.Values(),
+			UpdateExpression:          expr.Update(),
+			ReturnValues:              dynamotypes.ReturnValueAllOld,
+		})
+		if err != nil {
+			log.Printf("Couldn't update registration record %v. Here's why: %v\n", username, err)
+		} else {
+			err = attributevalue.UnmarshalMap(response.Attributes, &user)
+			if err != nil {
+				log.Printf("Couldn't unmarshall update response. Here's why: %v\n", err)
+			}
+		}
+	}
+	return &user, err
+}
+
+func SendMsg(score int, recipient string, username string) error {
+	msg := "درخواست احراز هویت شما رد شد. لطفا کمی بعد مجددا تلاش کنید."
+	if score >= 80 {
+		msg = "احراز هویت با موفقیت انجام شد. نام کاربری شما " + username + "است."
 	}
 	sess, err := session.NewSession(&sdkConfig)
 	if err != nil {
@@ -162,6 +203,7 @@ func sendEmail(score int, recipient string) error {
 	}
 	result, err := svc.SendEmail(input)
 	if err != nil {
+		log.Printf("failed to send email to %v\n", Sender)
 		if aerr, ok := err.(awserr.Error); ok {
 			switch aerr.Code() {
 			case ses.ErrCodeMessageRejected:
@@ -225,7 +267,7 @@ func DetectFace(url string) (string, error) {
 		log.Printf("Couldn't decode response body. Here's why: %v\n", err)
 		return "", err
 	}
-	if detResp.Status.Type != "success" {
+	if len(detResp.Result.Faces) == 0 {
 		log.Printf("Couldn't detect face at %v: %v\n", url, detResp.Status.Type)
 		return "", &errorString{"Couldn't detect face."}
 	}
@@ -251,6 +293,12 @@ func ProcessImages(url1 string, url2 string) (int, error) {
 		return 0, err
 	}
 	return score, nil
+}
+
+func hash(s string) uint32 {
+	h := fnv.New32a()
+	h.Write([]byte(s))
+	return h.Sum32()
 }
 
 func GetUserInfo(username string) (*User, error) {

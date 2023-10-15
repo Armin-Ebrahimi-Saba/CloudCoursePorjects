@@ -3,10 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
 	"log"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"path/filepath"
+	"strings"
 
 	ginadapter "github.com/awslabs/aws-lambda-go-api-proxy/gin"
 	"github.com/gin-gonic/gin"
@@ -26,8 +29,8 @@ import (
 
 type Form struct {
 	Email      string                `form:"email" binding:"required,email"`
-	LastName   string                `form:"lastName" binding:"required,min=5,max=15"`
-	NationalID int                   `form:"nationalID" binding:"required,min=0,max=100000"`
+	LastName   string                `form:"lastName" binding:"required"`
+	NationalID string                `form:"nationalID" binding:"required"`
 	Image1     *multipart.FileHeader `form:"image1" binding:"required"`
 	Image2     *multipart.FileHeader `form:"image2" binding:"required"`
 }
@@ -36,24 +39,24 @@ type User struct {
 	Username   string `dynamodbav:"username"`
 	Email      string `dynamodbav:"email"`
 	LastName   string `dynamodbav:"lastName"`
-	NationalID int    `dynamodbav:"nationalID"`
+	NationalID uint32 `dynamodbav:"nationalID"`
 	IP         string `dynamodbav:"ip"`
 	Image1     string `dynamodbav:"image1"`
 	Image2     string `dynamodbav:"image2"`
 	State      string `dynamodbav:"state"`
 }
 
-var initialized = false
-
 const TableName = "BankingAuthenticationService"
 
-var bucketName = "banking-authentication-images"
-var QueueName = "banking-authentication"
-
-var ginLambda *ginadapter.GinLambdaV2
-var db dynamodb.Client
-var s3Client *s3.Client
-var sqsClient *sqs.Client
+var (
+	initialized = false
+	bucketName  = "banking-authentication-images"
+	QueueName   = "banking-authentication"
+	ginLambda   *ginadapter.GinLambdaV2
+	db          dynamodb.Client
+	s3Client    *s3.Client
+	sqsClient   *sqs.Client
+)
 
 func main() {
 	lambda.Start(Handler)
@@ -80,7 +83,8 @@ func SaveImage(c *gin.Context) (*User, error) {
 		log.Printf("Couldn't open file Here's why: %v\n", err.Error())
 		return nil, err
 	}
-	newUsername := fmt.Sprint(form.NationalID) // c.RemoteIP() + time.Now().UTC().String()
+	hNationalID := hash(form.NationalID)
+	newUsername := fmt.Sprint(hNationalID) // c.RemoteIP() + time.Now().UTC().String()
 	keyName := newUsername + "1"
 	var partMiBs int64 = 10
 	uploader := manager.NewUploader(s3Client, func(u *manager.Uploader) {
@@ -114,17 +118,32 @@ func SaveImage(c *gin.Context) (*User, error) {
 		return nil, err
 	}
 	url2 := result.Location
+
+	ip := c.Request.RemoteAddr
+	if strings.Contains(c.Request.RemoteAddr, ":") {
+		ip, _, err = net.SplitHostPort(c.Request.RemoteAddr)
+		if err != nil {
+			log.Printf("Couldn't parse RemoteAddr Here's why: %v\n", err.Error())
+			return nil, err
+		}
+	}
 	user := User{
 		Username:   newUsername,
 		Email:      form.Email,
 		LastName:   form.LastName,
-		NationalID: form.NationalID,
-		IP:         c.RemoteIP(),
+		NationalID: hNationalID,
+		IP:         ip,
 		Image1:     url1,
 		Image2:     url2,
-		State:      "Pending",
+		State:      "در حال بررسی",
 	}
 	return &user, nil
+}
+
+func hash(s string) uint32 {
+	h := fnv.New32a()
+	h.Write([]byte(s))
+	return h.Sum32()
 }
 
 func InsertRecord(user *User, c *gin.Context) error {
@@ -167,12 +186,13 @@ func EnqueueRequests(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Your request was registered.",
+		"message": "درخواست شما ثبت شد.",
 	})
 }
 
 func GetStatus(c *gin.Context) {
 	id := c.Query("nationalID")
+	id = fmt.Sprint(hash(id))
 	username, err := attributevalue.Marshal(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -203,24 +223,22 @@ func GetStatus(c *gin.Context) {
 		log.Printf("Couldn't unmarshal resposne from dynamodb. Here's why: %v\n", err)
 		return
 	}
-	if c.RemoteIP() != user.IP {
+	ip := c.Request.RemoteAddr
+	if strings.Contains(c.Request.RemoteAddr, ":") {
+		ip, _, err = net.SplitHostPort(c.Request.RemoteAddr)
+		if err != nil {
+			log.Printf("Couldn't parse RemoteAddr Here's why: %v\n", err.Error())
+			return
+		}
+	}
+	if ip != user.IP {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "invalid IP address.",
+			"error": "دسترسی غیر مجاز",
 		})
 		log.Printf("No match between requester's IP and record's IP")
 		return
 	}
-	var message string
-	switch user.State {
-	case "Pending":
-		message = "Your request is pending."
-	case "Approved":
-		message = "Your request was approved."
-	case "Rejected":
-		message = "Your request was rejected. Please try again later."
-	default:
-		message = "Please retry later."
-	}
+	var message string = user.State
 	c.JSON(http.StatusOK, gin.H{
 		"message": message,
 	})
@@ -275,23 +293,3 @@ func Push(username string) error {
 	}
 	return nil
 }
-
-// fmt.Println("Sent message with ID: " + *resp.MessageId)
-
-// type SQSSendMessageAPI interface {
-// 	GetQueueUrl(ctx context.Context,
-// 		params *sqs.GetQueueUrlInput,
-// 		optFns ...func(*sqs.Options)) (*sqs.GetQueueUrlOutput, error)
-
-// 	SendMessage(ctx context.Context,
-// 		params *sqs.SendMessageInput,
-// 		optFns ...func(*sqs.Options)) (*sqs.SendMessageOutput, error)
-// }
-
-// func GetQueueURL(c context.Context, api SQSSendMessageAPI, input *sqs.GetQueueUrlInput) (*sqs.GetQueueUrlOutput, error) {
-// 	return api.GetQueueUrl(c, input)
-// }
-
-// func SendMsg(c context.Context, api SQSSendMessageAPI, input *sqs.SendMessageInput) (*sqs.SendMessageOutput, error) {
-// 	return api.SendMessage(c, input)
-// }
