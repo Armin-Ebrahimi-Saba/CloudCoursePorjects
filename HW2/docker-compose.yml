@@ -1,0 +1,36 @@
+version: '3.8'
+services:
+  weather:
+    build: .
+    container_name: weather_cont
+    ports:
+      - "8080:80" # Map port 80 of the custom service to port 8080 on the host
+    env_file:
+      - .env
+    volumes:
+      - .:/usr/src
+    stdin_open: true
+    tty: true
+    command: ["/bin/bash"]
+    networks:
+      - my_network
+    depends_on:
+      - db
+    links:
+      - "db:red"
+  db:
+    image: redis
+    container_name: redis_cont
+    ports:
+      - "6379:6379" # Map Redis port to the host
+    volumes:
+      - redis-db:/var/lib/redis/data
+    networks:
+      - my_network
+
+volumes:
+  redis-db:
+networks:
+  my_network:
+    driver: bridge
+  
