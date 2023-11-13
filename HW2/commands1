@@ -1,0 +1,12 @@
+docker build -t weather-monitor .
+docker push blackberryninja/weather-monitor
+docker pull blackberryninja/weather-monitor
+docker pull redis
+================================ using docker commit
+docker pull ubuntu
+-- from inside ubuntu
+  apt update
+  apt install curl
+  curl google.com
+docker commit eda5739862a8 curled:v1.0
+
