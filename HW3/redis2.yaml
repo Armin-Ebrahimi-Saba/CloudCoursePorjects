@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis2-deployment
+  labels:
+    app: redis2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis2
+  template:
+    metadata:
+      labels:
+        app: redis2
+    spec:
+      volumes:
+      - name: redis-pv
+        persistentVolumeClaim:
+          claimName: redis2-pvc
+      containers:
+      - name: redis2
+        image: redis:latest
+        ports:
+        - containerPort: 6379
+        volumeMounts:
+        - mountPath: "/data"
+          name: redis-pv
+        env:
+        - name: REDIS_PASSWORD # REDIS_PASSWORD is used by the app to authenticate with the redis host
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret # name of the secret
+              key: redis-password # import the value of 'redis-password' from app-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: red
+  labels:
+    app: redis2
+spec:
+  selector:
+    app: redis2
+  ports:
+    - port: 6379
+      targetPort: 6379
+  type: ClusterIP

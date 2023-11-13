@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: weather-app-deployment
+  labels:
+    app: weather-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: weather-app
+  template:
+    metadata:
+      labels:
+        app: weather-app
+    spec:
+      containers:
+      - name: weather-app
+        image: blackberryninja/weather-monitor:kub
+        command:
+          - "sleep"
+          - "infinity"
+        ports:
+        - containerPort: 8080
+        env:
+        - name: TTL
+          valueFrom:
+            configMapKeyRef:
+              name: weather-app-config
+              key: ttl
+        - name: CITY
+          valueFrom:
+            configMapKeyRef:
+              name: weather-app-config
+              key: city
+        - name: API_KEY
+          valueFrom:
+            configMapKeyRef:
+              name: weather-app-config
+              key: api-key
+        - name: REDIS_PASSWORD # REDIS_PASSWORD is used by the app to authenticate with the redis host
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret # name of the secret
+              key: redis-password # import the value of 'redis-password' from app-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: weather-app-service
+spec:
+  selector:
+    app: weather-app
+  ports:
+    - port: 8080
+      targetPort: 8080
