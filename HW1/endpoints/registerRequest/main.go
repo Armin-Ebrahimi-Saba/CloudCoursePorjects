@@ -46,7 +46,7 @@ type User struct {
 	State      string `dynamodbav:"state"`
 }
 
-const TableName = "BankingAuthenticationService"
+const TableName = "MyTable" // e.g. "BankingAuthenticationServiceTable"
 
 var (
 	initialized = false
@@ -267,7 +267,7 @@ func Push(username string) error {
 	// Get URL of queue
 	gQInput := &sqs.GetQueueUrlInput{
 		QueueName:              &QueueName,
-		QueueOwnerAWSAccountId: aws.String("106719423561"),
+		QueueOwnerAWSAccountId: aws.String("my account id"),
 	}
 	result, err := sqsClient.GetQueueUrl(context.TODO(), gQInput)
 	if err != nil {

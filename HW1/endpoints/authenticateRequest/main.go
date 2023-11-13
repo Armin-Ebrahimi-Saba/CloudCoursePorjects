@@ -80,13 +80,13 @@ type errorString struct {
 }
 
 const (
-	api_key    = "acc_7d54f0cae7319d2"
-	api_secret = "d4a4b8a3f75b7539bef24cd181f070d0"
-	TableName  = "BankingAuthenticationService"
+	api_key    = "" //TODO
+	api_secret = "" //TODO
+	TableName  = "BankingAuthenticationServiceTable"
 	CharSet    = "UTF-8"
 	Subject    = "Banking Authentication"
-	Sender     = "armines.bin2000@gmail.com"
-	S3Url      = "https://banking-authentication-images.s3.eu-west-2.amazonaws.com/"
+	Sender     = "my email"
+	S3Url      = "" //TODO
 )
 
 var (
