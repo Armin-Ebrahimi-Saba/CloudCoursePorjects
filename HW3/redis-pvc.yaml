@@ -9,4 +9,4 @@ spec:
   volumeName: redis-pv
   resources:
     requests:
-      storage: 4Gi  # Request the same storage capacity as in the PV
+      storage: 1Gi  # Request the same storage capacity as in the PV

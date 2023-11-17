@@ -12,6 +12,7 @@ else
         --url "https://weatherapi-com.p.rapidapi.com/current.json?q=$CITY" \
         --header 'X-RapidAPI-Host: weatherapi-com.p.rapidapi.com' \
         --header "X-RapidAPI-Key: $API_KEY")
-    echo $data | jq -j --arg ttl "$TTL" '"\(.location.name) \($ttl) \(.current.temp_c)"' | xargs redis-cli -h red SETEX
-    echo "Data fetched and cached: $CITY:$data c"
+    echo $data | jq -j --arg ttl "$TTL" '"\(.location.name) \($ttl) \"\(.current.temp_c)C \(.current.temp_f)F\""' | xargs redis-cli -h red SETEX
+    echo "Data fetched and cached: $CITY:$data"
 fi
+echo "pod ip: $POD_IP"
