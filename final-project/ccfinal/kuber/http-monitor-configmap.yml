@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+
+metadata:
+  name: configmap
+
+data:
+  config.yaml:  |+
+    monitor:
+      port: 8080
+      intervalM: 1
+
+
+    mysql:
+      waddr: "mysql-0.mysql:3306"
+      raddr: "mysql-0.mysqlread:3306"

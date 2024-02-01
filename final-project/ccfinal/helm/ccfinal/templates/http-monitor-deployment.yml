@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: {{ .Values.monitor.name }} # {{ .Release.Name }}
+
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: {{ .Values.monitor.name }}  #{{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.monitor.name }}  # {{ .Release.Name }}
+    spec:
+      containers:
+        - name:  {{ .Values.monitor.name }}  # {{ .Release.Name }}
+          image: fornacis/monitor:3
+          env:
+          - name: DB_USER
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Release.Name }}-auth
+                key: {{ .Values.MYSQL.environment.MYSQL_USER }} #username
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Release.Name }}-auth
+                key: {{ .Values.MYSQL.environment.MYSQL_PASSWORD }} #password
+          - name: DB_NAME
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Release.Name }}-auth
+                key: {{ .Values.MYSQL.environment.MYSQL_DATABASE }} #dbname
+          ports:
+            - containerPort: {{ .Values.monitor.port }}
+              name:  {{ .Values.monitor.name }} # {{ .Release.Name }}
+          {{- with .Values.monitor.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.monitor.resources | nindent 12 }}
+
+      {{- with .Values.monitor.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Values.MYSQL.name }}
+spec:
+  replicas: {{ .Values.MYSQL.replicaCount }} #2
+  serviceName: {{ .Values.MYSQL.name }}
+  selector:
+    matchLabels:
+      app: {{ .Values.MYSQL.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.MYSQL.name }}
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.MYSQL.terminationGracePeriodSeconds }} #10
+      containers:
+        - name: {{ .Values.MYSQL.name }} #{{ .Chart.Name }} 
+          image: "{{ .Values.MYSQL.image.repository }}:{{ .Values.MYSQL.image.tag }}"
+          ports:
+            - name: tcp
+              protocol: TCP
+              containerPort: {{ .Values.MYSQL.service.port }}
+          env:
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-auth
+                  key: {{ .Values.MYSQL.environment.MYSQL_USER }} #username
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-auth
+                  key: {{ .Values.MYSQL.environment.MYSQL_PASSWORD }} #password
+            - name: MYSQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-auth
+                  key: {{ .Values.MYSQL.environment.MYSQL_DATABASE }} #dbname
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-auth
+                  key: {{ .Values.MYSQL.environment.MYSQL_ROOT_PASSWORD }} #rootpassword
+          {{- with .Values.MYSQL.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.MYSQL.resources | nindent 12 }}
+
+  {{- with .Values.MYSQL.volumeClaimTemplates }}
+  volumeClaimTemplates:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}

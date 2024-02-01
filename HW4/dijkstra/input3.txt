@@ -1,0 +1,6 @@
+F:	{"Distance": float("inf"), "AdjacencyList": {'D': 6}}
+A:	{"Distance": float("0.0"), "AdjacencyList": {'B': 10, 'C': 5}}
+C:	{"Distance": float("5.0"), "AdjacencyList": {'E': 2, 'B': 3, 'D': 9}}
+E:	{"Distance": float("7.0"), "AdjacencyList": {'A': 7, 'D': 6}}
+B:	{"Distance": float("8.0"), "AdjacencyList": {'C': 2, 'D': 1}}
+D:	{"Distance": float("9.0"), "AdjacencyList": {'E': 4}}

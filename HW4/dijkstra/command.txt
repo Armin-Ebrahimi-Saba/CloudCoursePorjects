@@ -1,0 +1,2 @@
+cp input2.txt input.txt; python3 dijkstra.py
+cp input2.txt input.txt; python3 dijkstra1.py

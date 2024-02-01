@@ -1,0 +1,1 @@
+cp input2.txt input.txt; python3 page_rank.py; cat input.txt

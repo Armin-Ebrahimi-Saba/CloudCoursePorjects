@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+
+metadata:
+  name: {{ .Values.monitor.name }}-configmap
+
+data:
+  config.yaml:  |+
+    monitor:
+      port: {{ .Values.monitor.port }} 
+      intervalM: {{ .Values.monitor.intervalM }}
+
+    mysql:
+      waddr: {{ .Values.MYSQL.waddr }}
+      raddr: {{ .Values.MYSQL.raddr }}

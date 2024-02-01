@@ -1,0 +1,10 @@
+31525683: {"Distance": float("0"), "AdjacencyList": {31525685: 516, 31525688: 321}}
+31525684: {"Distance": float("inf"), "AdjacencyList": {31525692: 698}}
+31525685: {"Distance": float("inf"), "AdjacencyList": {31525683: 516, 31525686: 9, 31525690: 1134}}
+31525686: {"Distance": float("inf"), "AdjacencyList": {31525685: 9, 31525691: 862}}
+31525687: {"Distance": float("inf"), "AdjacencyList": {31525690: 843}}
+31525688: {"Distance": float("inf"), "AdjacencyList": {31525683: 321, 31525689: 613}}
+31525689: {"Distance": float("inf"), "AdjacencyList": {31525691: 428}}
+31525690: {"Distance": float("inf"), "AdjacencyList": {31525684: 1209}}
+31525691: {"Distance": float("inf"), "AdjacencyList": {31525689: 428}}
+31525692: {"Distance": float("inf"), "AdjacencyList": {31525684: 698, 31525687: 21, 31525692: 272}}

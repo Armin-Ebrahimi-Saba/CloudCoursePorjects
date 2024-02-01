@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: {{ .Values.monitor.name }} #{{ .Release.Name }}
+
+spec:
+  selector:
+    app: {{ .Values.monitor.name }}
+  ports:
+    - protocol: TCP
+      port:  {{ .Values.monitor.port }} 
+      targetPort:  {{ .Values.monitor.port }} 

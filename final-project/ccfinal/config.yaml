@@ -1,0 +1,10 @@
+
+monitor:
+  port: 8080
+  intervalM: 1
+
+
+mysql:
+    waddr: "mysql-server:3306"
+    raddr: "mysql-server:3306"
+
