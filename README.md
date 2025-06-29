@@ -1,5 +1,6 @@
 # CloudCoursePorjects
 API \
+AWS \
 Redis \
 Kubernetes \
 Docker \
